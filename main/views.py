@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
@@ -5,8 +6,12 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import DetailView, ListView, View
 from django.utils import timezone
-from .models import Item, OrderItem, Order, BillingAddress
+import stripe
+from .models import Item, OrderItem, Order, BillingAddress, Payment
 from .forms import CheckoutForm
+
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 class HomeView(ListView):
@@ -71,13 +76,66 @@ class CheckoutView(LoginRequiredMixin, View):
                 zip_address=zip_address,
             )
             billing_address.save()
-
             order.billing_address = billing_address
             order.save()
-            return redirect('main:checkout')
+
+            if payment_option == 'S':
+                return redirect('main:payment', payment_option='stripe')
+            elif payment_option == 'P':
+                return redirect('main:payment', payment_option='paypal')
+            else:
+                messages.error(self.request, 'Invalid payment option selected.')
+                return redirect('main:checkout')
 
         messages.warning(self.request, 'Failed checkout.')
         return redirect('main:checkout')
+
+
+class PaymentView(LoginRequiredMixin, View):
+
+    def get(self, *args, **kwargs):
+        order = Order.objects.get(user=self.request.user, ordered=False)
+        context = {
+            'order': order
+        }
+        return render(self.request, 'payment.html', context)
+
+    def post(self, *args, **kwargs):
+        order = Order.objects.get(user=self.request.user, ordered=False)
+        token = self.request.POST.get('stripeToken')
+        amount = int(order.get_total() * 100)
+        try:
+            # Use Stripe's library to make requests
+            charge = stripe.Charge.create(
+                amount=amount,  # cents
+                currency="usd",
+                source=token,
+            )
+            # Create the payment
+            payment = Payment()
+            payment.stripe_charge_id = charge['id']
+            payment.user = self.request.user
+            payment.amount = order.get_total()
+            payment.save()
+            # Assign the payment to the order
+            order.ordered = True
+            order.payment = payment
+            order.save()
+            messages.success(self.request, 'Your order was successfully paid!')
+            return redirect('main:home')
+        except (
+            stripe.error.CardError,
+            stripe.error.RateLimitError,
+            stripe.error.InvalidRequestError,
+            stripe.error.AuthenticationError,
+            stripe.error.APIConnectionError,
+            stripe.error.StripeError,
+        ) as e:
+            messages.error(self.request, f'{e.error.message}')
+            return redirect('main:payment', payment_option='stripe')
+        except Exception:
+            messages.error(self.request, 'Serious error occured. Please try again.')
+            return redirect('main:home')
 
 
 @login_required
