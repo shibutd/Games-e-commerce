@@ -59,6 +59,7 @@
       <div class="row wow fadeIn">
 
         {% for item in object_list %}
+
         <!--Grid column-->
         <div class="col-lg-3 col-md-6 mb-4">
 
@@ -67,8 +68,10 @@
 
             <!--Card image-->
             <div class="view overlay">
-              <img src="https://mdbootstrap.com/img/Photos/Horizontal/E-commerce/Vertical/12.jpg" class="card-img-top"
-                alt="">
+              <!--<img src="https://mdbootstrap.com/img/Photos/Horizontal/E-commerce/Vertical/12.jpg" class="card-img-top"
+                alt="">-->
+
+              <img src="{{ item.image.url }}" class="card-img-top">
               <a href="{{ item.get_absolute_url }}">
                 <div class="mask rgba-white-slight"></div>
               </a>

@@ -126,6 +126,9 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
+
 
 # Auth
 
@@ -146,4 +149,4 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 # STRIPE
 
-STRIPE_SECRET_KEY = ''
+STRIPE_SECRET_KEY = 'sk_test_4eC39HqLyjWDarjtT1zdp7dc'
